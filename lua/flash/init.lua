@@ -1,61 +1,98 @@
 local M = {}
 
 M.buf = require("flash.buffers")
+M.HEAD = nil
 
 local Path = require("plenary.path")
 
-M._FLASH = './'
-M._problems = {}
+local FLASH = '.'
+local problems = {}
 
 local data_path = vim.fn.stdpath("data")
-local cache_config = string.format("%s/flash.json", data_path)
+local cache_problems = string.format("%s/flash.json", data_path)
 
 
 M.push = function(name, simname, opts)
     local sim = {}
     sim["sim"] = simname
     sim["opts"] = opts
-    M._problems[name] = sim
+    problems[name] = sim
     M.save()
+    M.HEAD = name
 end
 
-M.add = function(name, opts)
-    local sim = M._problems[name]
+M.switch = function(name)
+    M.HEAD = name
+end
+
+M.add = function(opts, name)
+    name = name or M.HEAD
+    local sim = problems[name]
     sim["opts"] = sim["opts"] .. " " .. opts
-    M._problems[name] = sim
+    problems[name] = sim
 end
 
 M.save = function()
-    Path:new(cache_config):write(vim.fn.json_encode(M._problems), "w")
+    Path:new(cache_problems):write(vim.fn.json_encode(problems), "w")
 end
 
 M.load = function()
-    return vim.json.decode(Path:new(cache_config):read())
+    return vim.json.decode(Path:new(cache_problems):read())
 end
 
-M.setup = function(FLASH_DIR)
-    M._Flash = FLASH_DIR or './'
-    local ok, problems = pcall(M.load, cache_config)
+M.init = function(FLASH_DIR)
+    -- initialize by trying to read problems from cached table if it exists
+    FLASH = FLASH_DIR or './'
+    local ok, probs = pcall(M.load, cache_problems)
     if ok then
-        M._problems = problems
+        problems = probs
     end
 end
 
-M.buf.get_buf()
-vim.fn.jobstart({"ls","-a",M._FLASH}, {
-    stdout_buffered=true,
-    on_stdout = function(_,data)
-        if data then
-            M.buf.write_stdout(data)
-        end
-    end,
-})
+M.getProblems = function()
+    return problems
+end
+
+local getObjDir = function(name)
+    local objdir = "nvim/object_" .. name
+    return objdir
+end
+
+M.setup = function(name)
+    M.HEAD = name or M.HEAD
+    local objdir = getObjDir(M.HEAD)
+    vim.fn.jobstart({'mkdir', '-p', FLASH..'/'..objdir})
+    local setupPY = FLASH .. "/bin/setup.py"
+    local opts = problems[M.HEAD]["opts"] .. " -objdir=" .. objdir
+    local prob = problems[M.HEAD]["sim"]
+    M.buf.get_buf()
+    local command = {setupPY, prob}
+    for w in opts:gmatch("%g+") do table.insert(command, w) end
+    M.buf.run_buf(command, {cwd=FLASH .. "/bin"})
+end
+
+M.compile = function(opts)
+    opts = opts or ""
+    local objdir = getObjDir(M.HEAD)
+    local command = "make " .. opts
+    M.buf.run_buf(command, {cwd = FLASH .. "/" .. objdir})
+end
 
 
 -- for testing
--- M._FLASH = '/Users/adamreyes/Documents/research/repos/FLASH'
+-- FLASH = '/Users/adamreyes/Documents/research/repos/FLASH'
 -- M.setup()
--- M.push("sedov", "sedov", "-auto +pm4dev +uhd -2d")
+local FLASH_DIR = os.getenv('FLASH_DIR')
+M.init(FLASH_DIR)
+M.push("sedov", "sedov", "-auto +pm4dev +uhd -2d")
+M.buf.get_buf()
+-- M.setup()
+M.compile("-j 8")
+vim.keymap.set("n", "<leader><leader>k", M.buf.kill_all)
+-- M.buf.write_stdout({"hello world"})
+-- M.buf.write_stdout({"hello there world"})
 -- print(data_path)
 
 return M
+-- /Users/adamreyes/Documents/research/repos/FLASH/bin/setup.py sedov -auto +pm4dev +uhd -2d -objdir=nvim/object_sedov
+
