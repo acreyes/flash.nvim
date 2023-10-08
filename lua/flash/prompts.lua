@@ -16,6 +16,41 @@ local pickers = require 'telescope.pickers'
 local scan = require 'plenary.scandir'
 local entry_display = require 'telescope.pickers.entry_display'
 
+local getHead = function()
+    local data = {}
+    local probs = fl.getProblems()
+    for name, _ in pairs(probs) do
+        if name ~= 'HEAD' then
+            table.insert(data, name)
+        end
+    end
+
+    pickers.new({}, {
+        prompt_title = 'Problems',
+        finder = finders.new_table {results = data, entry_maker = make_entry.gen_from_file {} },
+        sorter = conf.file_sorter {},
+        attach_mappings = function(prompt_bufnr)
+            action_set.select:replace(function()
+
+                local selection = action_state.get_selected_entry()
+
+                actions.close(prompt_bufnr)
+                M.switch(selection.value)
+                -- M.push(name, simDir:sub(1,-2))
+            end)
+            return true
+        end,
+    }):find()
+end
+
+M.switch = function(name)
+    if name then
+        fl.switch(name)
+    else
+        getHead()
+    end
+end
+
 
 local getSim = function(name)
     local data = {}
@@ -37,9 +72,6 @@ local getSim = function(name)
         sorter = conf.file_sorter {},
         attach_mappings = function(prompt_bufnr)
             action_set.select:replace(function()
-                local current_picker = action_state.get_current_picker(prompt_bufnr)
-
-                local dirs = {}
                 local selection = action_state.get_selected_entry()
                 local simDir = string.gsub(selection.value, fl.FLASH..'/source/Simulation/SimulationMain/', '')
 
