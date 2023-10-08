@@ -61,6 +61,7 @@ end
 M.setup = function(name)
     M.HEAD = name or M.HEAD
     local objdir = getObjDir(M.HEAD)
+    -- TODO: configure data directory with DATAFILES & parfile
     vim.fn.jobstart({'mkdir', '-p', FLASH..'/'..objdir})
     local setupPY = FLASH .. "/bin/setup.py"
     local opts = problems[M.HEAD]["opts"] .. " -objdir=" .. objdir
@@ -78,6 +79,15 @@ M.compile = function(opts)
     M.buf.run_buf(command, {cwd = FLASH .. "/" .. objdir})
 end
 
+M.run = function(opts)
+    opts = opts or '-np 1'
+    local objdir = getObjDir(M.HEAD)
+    local dataDir = objdir .. '/data'
+    local command = 'mpirun ' .. opts .. ' ./flash4'
+    -- TODO: run in data directory
+    M.buf.run_buf(command, {cwd = FLASH .. "/" .. objdir})
+end
+
 
 -- for testing
 -- FLASH = '/Users/adamreyes/Documents/research/repos/FLASH'
@@ -87,8 +97,13 @@ M.init(FLASH_DIR)
 M.push("sedov", "sedov", "-auto +pm4dev +uhd -2d")
 M.buf.get_buf()
 -- M.setup()
-M.compile("-j 8")
+-- M.compile("-j 8")
+-- M.run('-np 4')
+vim.keymap.set("n", "<leader>sh", M.setup)
+vim.keymap.set("n", "<leader>ch", M.compile)
+vim.keymap.set("n", "<leader>rh", M.run)
 vim.keymap.set("n", "<leader><leader>k", M.buf.kill_all)
+vim.keymap.set("n", "<leader>si", M.buf.send_stdin)
 -- M.buf.write_stdout({"hello world"})
 -- M.buf.write_stdout({"hello there world"})
 -- print(data_path)

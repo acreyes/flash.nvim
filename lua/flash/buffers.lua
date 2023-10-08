@@ -1,7 +1,7 @@
 local M = {}
 M._buf = nil
 M._win = nil
-local jobs = {}
+local job = nil
 
 M.get_buf = function()
 
@@ -22,7 +22,7 @@ M.clear_buf = function(maxLines)
     maxLines = maxLines or 100
     local Nlines = vim.api.nvim_buf_line_count(M._buf)
     if Nlines > maxLines then
-        vim.api.nvim_buf_set_lines(M._buf, 0, -maxLines, false, {""})
+        vim.api.nvim_buf_set_lines(M._buf, 1, -maxLines, false, {""})
     end
 end
 
@@ -51,10 +51,12 @@ local scroll_to_end = function(bufnr)
 end
 
 M.write_stdout = function(data)
-    -- local prev_data = vim.api.nvim_buf_get_lines(M._buf,0,-1,false)
-    -- print(vim.inspect(prev_data))
-    vim.api.nvim_buf_set_lines(M._buf, -1, -1, false, data)
+    vim.api.nvim_buf_set_lines(M._buf, -2, -1, false, data)
     scroll_to_end(M._buf)
+end
+
+local clear_job = function()
+    job = nil
 end
 
 M.run_buf = function(command, optsIN)
@@ -73,18 +75,34 @@ M.run_buf = function(command, optsIN)
                 M.write_stdout(data)
             end
         end,
+        on_exit = function()
+            clear_job()
+        end,
     }
     for key, val in pairs(optsIN) do
         opts[key] = val
     end
-    local jid = vim.fn.jobstart(command, opts)
-    jobs[jid] = jid
+    if job then
+        vim.fn.jobwait({job})
+        job = vim.fn.jobstart(command, opts)
+    else
+        job = vim.fn.jobstart(command, opts)
+    end
 end
 
-M.kill_all = function()
-    for id, _ in pairs(jobs) do
-        vim.fn.jobstop(id)
+M.send_stdin = function()
+    if job then
+        local msg = vim.fn.input('stdin: ')
+        vim.fn.chansend(job, msg)
+        vim.fn.chanclose(job, 'stdin')
+    else
+        print('No Running job')
     end
+end
+
+
+M.kill_all = function()
+    vim.fn.jobstop(job)
 end
 
 return M
