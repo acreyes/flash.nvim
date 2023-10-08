@@ -5,7 +5,7 @@ M.HEAD = nil
 
 local Path = require("plenary.path")
 
-local FLASH = '.'
+M.FLASH = vim.fn.getcwd()
 local problems = {}
 
 local data_path = vim.fn.stdpath("data")
@@ -33,6 +33,7 @@ M.add = function(opts, name)
 end
 
 M.save = function()
+    problems["HEAD"] = M.HEAD
     Path:new(cache_problems):write(vim.fn.json_encode(problems), "w")
 end
 
@@ -42,10 +43,11 @@ end
 
 M.init = function(FLASH_DIR)
     -- initialize by trying to read problems from cached table if it exists
-    FLASH = FLASH_DIR or './'
+    M.FLASH = FLASH_DIR or './'
     local ok, probs = pcall(M.load, cache_problems)
     if ok then
         problems = probs
+        M.HEAD = next(problems,nil)
     end
 end
 
@@ -62,21 +64,21 @@ M.setup = function(name)
     M.HEAD = name or M.HEAD
     local objdir = getObjDir(M.HEAD)
     -- TODO: configure data directory with DATAFILES & parfile
-    vim.fn.jobstart({'mkdir', '-p', FLASH..'/'..objdir})
-    local setupPY = FLASH .. "/bin/setup.py"
+    vim.fn.jobstart({'mkdir', '-p', M.FLASH..'/'..objdir})
+    local setupPY = M.FLASH .. "/bin/setup.py"
     local opts = problems[M.HEAD]["opts"] .. " -objdir=" .. objdir
     local prob = problems[M.HEAD]["sim"]
     M.buf.get_buf()
     local command = {setupPY, prob}
     for w in opts:gmatch("%g+") do table.insert(command, w) end
-    M.buf.run_buf(command, {cwd=FLASH .. "/bin"})
+    M.buf.run_buf(command, {cwd=M.FLASH .. "/bin"})
 end
 
 M.compile = function(opts)
     opts = opts or ""
     local objdir = getObjDir(M.HEAD)
     local command = "make " .. opts
-    M.buf.run_buf(command, {cwd = FLASH .. "/" .. objdir})
+    M.buf.run_buf(command, {cwd = M.FLASH .. "/" .. objdir})
 end
 
 M.run = function(opts)
@@ -85,7 +87,7 @@ M.run = function(opts)
     local dataDir = objdir .. '/data'
     local command = 'mpirun ' .. opts .. ' ./flash4'
     -- TODO: run in data directory
-    M.buf.run_buf(command, {cwd = FLASH .. "/" .. objdir})
+    M.buf.run_buf(command, {cwd = M.FLASH .. "/" .. objdir})
 end
 
 
@@ -93,17 +95,9 @@ end
 -- FLASH = '/Users/adamreyes/Documents/research/repos/FLASH'
 -- M.setup()
 local FLASH_DIR = os.getenv('FLASH_DIR')
-M.init(FLASH_DIR)
-M.push("sedov", "sedov", "-auto +pm4dev +uhd -2d")
-M.buf.get_buf()
 -- M.setup()
 -- M.compile("-j 8")
 -- M.run('-np 4')
-vim.keymap.set("n", "<leader>sh", M.setup)
-vim.keymap.set("n", "<leader>ch", M.compile)
-vim.keymap.set("n", "<leader>rh", M.run)
-vim.keymap.set("n", "<leader><leader>k", M.buf.kill_all)
-vim.keymap.set("n", "<leader>si", M.buf.send_stdin)
 -- M.buf.write_stdout({"hello world"})
 -- M.buf.write_stdout({"hello there world"})
 -- print(data_path)

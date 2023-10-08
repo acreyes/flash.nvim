@@ -18,6 +18,18 @@ M.get_buf = function()
     end
 end
 
+M.toggle_win = function()
+    local wins = vim.fn.win_findbuf(M._buf)
+    local nxt = next(wins)
+    if not nxt then
+        -- buffer not open in any window
+        M.get_buf()
+    else
+        -- close window
+        vim.api.nvim_win_close(wins[1], false)
+    end
+end
+
 M.clear_buf = function(maxLines)
     maxLines = maxLines or 100
     local Nlines = vim.api.nvim_buf_line_count(M._buf)
