@@ -1,12 +1,10 @@
 local M = {}
 
 local fl = require("flash")
-local buf = require("flash.buffers")
 
 local Path = require 'plenary.path'
 local action_set = require 'telescope.actions.set'
 local action_state = require 'telescope.actions.state'
-local transform_mod = require('telescope.actions.mt').transform_mod
 local actions = require 'telescope.actions'
 local conf = require('telescope.config').values
 local finders = require 'telescope.finders'
@@ -14,7 +12,6 @@ local make_entry = require 'telescope.make_entry'
 local os_sep = Path.path.sep
 local pickers = require 'telescope.pickers'
 local scan = require 'plenary.scandir'
-local entry_display = require 'telescope.pickers.entry_display'
 
 local getHead = function()
     local data = {}
@@ -36,7 +33,6 @@ local getHead = function()
 
                 actions.close(prompt_bufnr)
                 M.switch(selection.value)
-                -- M.push(name, simDir:sub(1,-2))
             end)
             return true
         end,
