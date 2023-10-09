@@ -33,5 +33,16 @@ vim.api.nvim_create_user_command('Make',
     {nargs = '*',
 })
 
+vim.api.nvim_create_user_command('Mpirun',
+    function(opts)
+        local args = ''
+        for _, opt in pairs(opts.fargs) do
+            args = args .. ' '..opt
+        end
+        fl.run(args)
+    end,
+    {nargs = '*'}
+    )
+
 
 return M
