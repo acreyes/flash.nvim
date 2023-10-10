@@ -24,11 +24,10 @@ local getHead = function()
 
     pickers.new({}, {
         prompt_title = 'Problems',
-        finder = finders.new_table {results = data, entry_maker = make_entry.gen_from_file {} },
+        finder = finders.new_table { results = data, entry_maker = make_entry.gen_from_file {} },
         sorter = conf.file_sorter {},
         attach_mappings = function(prompt_bufnr)
             action_set.select:replace(function()
-
                 local selection = action_state.get_selected_entry()
 
                 actions.close(prompt_bufnr)
@@ -47,10 +46,41 @@ M.switch = function(name)
     end
 end
 
+M.addRunDir = function(name, runDir)
+    name = name or fl.HEAD
+    local data = {}
+    scan.scan_dir(fl.FLASH .. os_sep .. fl.getSimDir(name), {
+        hidden = false,
+        depth = 1,
+        search_pattern = ".*par",
+        on_insert = function(entry)
+            table.insert(data,entry)
+        end,
+    })
+    pickers.new({}, {
+        prompt_title = 'Simulation Directory',
+        finder = finders.new_table { results = data, entry_maker = make_entry.gen_from_file {} },
+        -- previewer = conf.file_previewer {},
+        sorter = conf.file_sorter {},
+        attach_mappings = function(prompt_bufnr)
+            action_set.select:replace(function()
+                local selection = action_state.get_selected_entry()
+                local parfile = selection.value
+                -- local parfile = fl.FLASH .. os_sep .. fl.getSimDir(name) .. os_sep .. selection.value
+                -- local simDir = string.gsub(selection.value, fl.FLASH .. '/source/Simulation/SimulationMain/', '')
+
+                actions.close(prompt_bufnr)
+                fl.addRunDir(name, runDir, parfile)
+            end)
+            return true
+        end,
+    }):find()
+end
+
 
 local getSim = function(name)
     local data = {}
-    scan.scan_dir(fl.FLASH..'/source/Simulation/SimulationMain', {
+    scan.scan_dir(fl.FLASH .. '/source/Simulation/SimulationMain', {
         hidden = false,
         only_dirs = true,
         respect_gitignore = false,
@@ -69,23 +99,32 @@ local getSim = function(name)
         attach_mappings = function(prompt_bufnr)
             action_set.select:replace(function()
                 local selection = action_state.get_selected_entry()
-                local simDir = string.gsub(selection.value, fl.FLASH..'/source/Simulation/SimulationMain/', '')
+                local simDir = string.gsub(selection.value, fl.FLASH .. '/source/Simulation/SimulationMain/', '')
 
                 actions.close(prompt_bufnr)
-                M.push(name, simDir:sub(1,-2))
+                M.push(name, simDir:sub(1, -2))
             end)
             return true
         end,
     }):find()
 end
 
+-- this is intended to only be called with the "name" argument
+-- getSim will recursively call back to this function and provide
+-- simname from a telescope prompt
 M.push = function(name, simname)
     if not name then
         name = vim.fn.input('name: ')
+    end
+    if not simname then
         getSim(name)
     else
         local opts = vim.fn.input('setup flags: ')
         fl.push(name, simname, opts)
+        local rundir = vim.fn.input('rundir: ')
+        if rundir ~= '' then
+            M.addRunDir(name, rundir)
+        end
     end
 end
 
