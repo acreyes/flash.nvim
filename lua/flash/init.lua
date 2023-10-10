@@ -28,6 +28,7 @@ end
 
 M.switch = function(name)
     M.HEAD = name
+    M.save()
 end
 
 M.getProblems = function()
@@ -39,6 +40,7 @@ M.add = function(opts, name)
     local sim = problems[name]
     sim["opts"] = sim["opts"] .. " " .. opts
     problems[name] = sim
+    M.save()
 end
 
 M.save = function()
@@ -64,7 +66,7 @@ end
 --
 -- FLASH directory related actions
 
-local getObjDir = function(name)
+M.getObjDir = function(name)
     name = name or M.HEAD
     local objdir = "nvim/object_" .. name
     return objdir
@@ -77,7 +79,7 @@ end
 
 M.setup = function(name)
     M.HEAD = name or M.HEAD
-    local objdir = getObjDir(M.HEAD)
+    local objdir = M.getObjDir(M.HEAD)
     vim.fn.jobstart({ 'mkdir', '-p', M.FLASH .. os_sep .. objdir })
     local setupPY = M.FLASH .. "/bin/setup.py"
     local opts = problems[M.HEAD]["opts"] .. " -objdir=" .. objdir
@@ -86,19 +88,20 @@ M.setup = function(name)
     local command = { setupPY, prob }
     for w in opts:gmatch("%g+") do table.insert(command, w) end
     M.buf.run_buf(command, { cwd = M.FLASH .. "/bin" })
+    M.save()
 end
 
 local copy2run = function(name, file, runName)
     runName = runName or ''
     name = name or M.HEAD
     local rd = problems[name]["RD"]
-    local rundir = M.FLASH .. os_sep .. getObjDir(name) .. os_sep .. problems[name]["runDirs"][rd]
+    local rundir = M.FLASH .. os_sep .. M.getObjDir(name) .. os_sep .. problems[name]["runDirs"][rd]
     vim.fn.system("cp " .. file .. " " .. rundir .. os_sep .. runName)
 end
 
 M.addRunDir = function(name, runDir, parfile)
     name = name or M.HEAD
-    parfile = parfile or M.FLASH .. os_sep .. getObjDir(name) .. os_sep .. "flash.par"
+    parfile = parfile or M.FLASH .. os_sep .. M.getObjDir(name) .. os_sep .. "flash.par"
     if not problems[name]["runDirs"] then
         print(vim.inspect(problems[name]["runDirs"]))
         problems[name]["runDirs"] = {}
@@ -107,8 +110,9 @@ M.addRunDir = function(name, runDir, parfile)
         -- table.insert(problems[name]["runDirs"], runDir)
         problems[name]["runDirs"][runDir] = runDir
         problems[name]["RD"] = runDir
-        vim.fn.system("mkdir -p " .. M.FLASH .. os_sep .. getObjDir(name) .. os_sep .. runDir)
+        vim.fn.system("mkdir -p " .. M.FLASH .. os_sep .. M.getObjDir(name) .. os_sep .. runDir)
         copy2run(name, parfile, 'flash.par')
+        M.getDataFiles()
         local dataFiles = problems[name]["dataFiles"]
         if dataFiles then
             for _, df in pairs(dataFiles) do
@@ -116,18 +120,19 @@ M.addRunDir = function(name, runDir, parfile)
             end
         end
     end
+    M.save()
 end
 
 M.compile = function(opts)
     opts = opts or ""
-    local objdir = getObjDir(M.HEAD)
+    local objdir = M.getObjDir(M.HEAD)
     local command = "make " .. opts
     M.buf.run_buf(command, { cwd = M.FLASH .. "/" .. objdir })
 end
 
 M.run = function(opts)
     opts = opts or '-np 1'
-    local objdir = getObjDir(M.HEAD)
+    local objdir = M.getObjDir(M.HEAD)
     local command = 'mpirun ' .. opts .. ' ' .. M.FLASH .. os_sep .. objdir .. '/flash4'
     -- TODO: run in data directory
     local rd = problems[M.HEAD]["RD"]
@@ -138,8 +143,7 @@ M.run = function(opts)
     M.buf.run_buf(command, { cwd = M.FLASH .. os_sep .. rundir })
 end
 
-M.dataFiles = function()
-    local objdir = M.FLASH .. os_sep .. getObjDir(M.HEAD)
+M.getDataFiles = function()
     local simdir = problems[M.HEAD]["sim"]
 
     print(simdir)
@@ -172,6 +176,7 @@ M.dataFiles = function()
         end
         problems[M.HEAD]["dataFiles"] = dataFiles
     end
+    M.save()
 end
 
 -- local FLASH_DIR = os.getenv('FLASH_DIR')

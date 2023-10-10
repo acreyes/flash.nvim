@@ -12,6 +12,7 @@ local make_entry = require 'telescope.make_entry'
 local os_sep = Path.path.sep
 local pickers = require 'telescope.pickers'
 local scan = require 'plenary.scandir'
+local builtin = require'telescope.builtin'
 
 local getHead = function()
     local data = {}
@@ -36,6 +37,33 @@ local getHead = function()
             return true
         end,
     }):find()
+end
+
+M.pickSim = function()
+    local name = fl.HEAD
+    local simdir = fl.FLASH .. os_sep .. fl.getSimDir(name)
+    builtin.find_files{ cwd=simdir, path_display = { "truncate" } }
+end
+
+M.pickRun = function()
+    local name = fl.HEAD
+    local sim = fl.getProblems()[name]
+    if sim['RD'] then
+        local rundir = sim['RD']
+        local searchdir = fl.FLASH .. os_sep .. fl.getObjDir(name) .. os_sep .. rundir
+        builtin.find_files({cwd=searchdir, path_displys = {"truncate"}})
+    else
+        print('No Active Run Directory')
+    end
+end
+
+M.pickObj = function()
+    local name = fl.HEAD
+    local searchdir = fl.FLASH .. os_sep .. fl.getObjDir(name)
+    builtin.find_files({cwd=searchdir,
+        path_displays={'truncate'},
+        follow = 'true'
+})
 end
 
 M.switch = function(name)
