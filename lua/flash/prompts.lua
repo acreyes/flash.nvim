@@ -14,6 +14,31 @@ local pickers = require 'telescope.pickers'
 local scan = require 'plenary.scandir'
 local builtin = require'telescope.builtin'
 
+local getRun = function()
+    local name = fl.HEAD
+    local data = {}
+    local sim = fl.getProblems()[name]
+    if sim["RD"] then
+        for rundir, _ in pairs(sim["runDirs"]) do
+            table.insert(data, rundir)
+        end
+    end
+    pickers.new({}, {
+        prompt_title = 'Run Directories',
+        finder = finders.new_table { results = data, entry_maker = make_entry.gen_from_file {} },
+        sorter = conf.file_sorter {},
+        attach_mappings = function(prompt_bufnr)
+            action_set.select:replace(function()
+                local selection = action_state.get_selected_entry()
+
+                actions.close(prompt_bufnr)
+                fl.setRunDir(name, selection.value)
+            end)
+            return true
+        end,
+    }):find()
+end
+
 local getHead = function()
     local data = {}
     local probs = fl.getProblems()
@@ -72,6 +97,10 @@ M.switch = function(name)
     else
         getHead()
     end
+end
+
+M.switchRD = function()
+    getRun()
 end
 
 M.addRunDir = function(name, runDir)

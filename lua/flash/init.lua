@@ -123,6 +123,10 @@ M.addRunDir = function(name, runDir, parfile)
     M.save()
 end
 
+M.setRunDir = function(name, runDir)
+    problems[name]["RD"] = runDir
+end
+
 M.compile = function(opts)
     opts = opts or ""
     local objdir = M.getObjDir(M.HEAD)
