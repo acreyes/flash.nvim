@@ -22,8 +22,8 @@ M.push = function(name, simname, opts)
     sim["opts"] = opts
     sim["runDirs"] = {}
     problems[name] = sim
-    M.save()
     M.HEAD = name
+    M.save()
 end
 
 M.switch = function(name)
@@ -58,7 +58,8 @@ M.init = function(FLASH_DIR)
     local ok, probs = pcall(M.load, cache_problems)
     if ok then
         problems = probs
-        M.HEAD = next(problems, nil)
+        M.HEAD = problems['HEAD']
+        -- M.HEAD = next(problems, nil)
     end
 end
 
@@ -103,7 +104,6 @@ M.addRunDir = function(name, runDir, parfile)
     name = name or M.HEAD
     parfile = parfile or M.FLASH .. os_sep .. M.getObjDir(name) .. os_sep .. "flash.par"
     if not problems[name]["runDirs"] then
-        print(vim.inspect(problems[name]["runDirs"]))
         problems[name]["runDirs"] = {}
     end
     if runDir then
@@ -125,6 +125,7 @@ end
 
 M.setRunDir = function(name, runDir)
     problems[name]["RD"] = runDir
+    M.save()
 end
 
 M.compile = function(opts)
@@ -150,11 +151,11 @@ end
 M.getDataFiles = function()
     local simdir = problems[M.HEAD]["sim"]
 
-    print(simdir)
     local all_dirs = vim.split(simdir, os_sep)
 
     local files = {}
     local getConfigs = function(dir)
+        files = {}
         scan.scan_dir(dir, {
             hidden = false,
             depth = 1,
@@ -166,16 +167,20 @@ M.getDataFiles = function()
     end
     local dataFiles = {}
     local absDir = M.FLASH .. os_sep .. "source/Simulation/SimulationMain"
+    local file = ''
+    -- print(vim.inspect(files))
     for i, dir in pairs(all_dirs) do
         absDir = absDir .. os_sep .. dir
         getConfigs(absDir)
-        local file = files[i]
-        local gout = vim.fn.system('grep "^\\s*DATAFILES" ' .. file)
-        gout = string.gsub(gout, " ", "")
-        local result = vim.split(string.gsub(gout, "DATAFILES", ""), "\n")
-        for _, f in pairs(result) do
-            if f ~= "" then
-                table.insert(dataFiles, f)
+        _, file = next(files)
+        if file then
+            local gout = vim.fn.system('grep "^\\s*DATAFILES" ' .. file)
+            gout = string.gsub(gout, " ", "")
+            local result = vim.split(string.gsub(gout, "DATAFILES", ""), "\n")
+            for _, f in pairs(result) do
+                if f ~= "" then
+                    table.insert(dataFiles, f)
+                end
             end
         end
         problems[M.HEAD]["dataFiles"] = dataFiles
