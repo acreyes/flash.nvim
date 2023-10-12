@@ -49,6 +49,7 @@ vim.keymap.set("n", "<leader>pr", prompt.pickRun)
 vim.keymap.set("n", "<leader>po", prompt.pickObj)
 vim.keymap.set("n", "<leader>sh", prompt.switch)
 vim.keymap.set("n", "<leader>sr", prompt.switchRD)
+vim.keymap.set("n", "<leader>es", prompt.editSetup)
 ```
 
 `flash.nvim` is initialized with `require'flash'.init()` by passing the path to where you have the FLASH Code. This will cause the plugin to load the state of the stack from the last save. The stack is saved anytime an operation is done to change it. The plugin manages two stacks, one for the object directories and then within each of those there is a stack for the run directories. The stack stores the setup arguments for each object directory.
