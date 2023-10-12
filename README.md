@@ -66,6 +66,7 @@ vim.keymap.set("n", "<leader>es", prompt.editSetup)
 
 ### Run FLASH
 ```vim
+:Flash4
 :Fmpirun -np 4
 ```
 
