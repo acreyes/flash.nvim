@@ -66,8 +66,8 @@ vim.keymap.set("n", "<leader>es", prompt.editSetup)
 
 ### Run FLASH
 ```vim
-:Flash4
-:Fmpirun -np 4
+:Flash4        " serial
+:Fmpirun -np 4 " parallel
 ```
 
 ### Managing the Stacks
