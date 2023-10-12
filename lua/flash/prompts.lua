@@ -185,6 +185,13 @@ M.push = function(name, simname)
     end
 end
 
+M.editSetup = function()
+  local name = fl.HEAD
+  local opts = fl.getProblems()[name]["opts"]
+  opts = vim.fn.input({prompt="Setup args: ",default= opts})
+  fl.editSetup(name, opts)
+end
+
 
 
 return M

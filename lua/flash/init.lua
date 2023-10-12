@@ -26,6 +26,12 @@ M.push = function(name, simname, opts)
     M.save()
 end
 
+M.editSetup = function(name, opts)
+  name = name or M.HEAD
+  problems[name]["opts"] = opts
+  M.save()
+end
+
 M.switch = function(name)
     M.HEAD = name
     M.save()
@@ -175,11 +181,13 @@ M.getDataFiles = function()
         _, file = next(files)
         if file then
             local gout = vim.fn.system('grep "^\\s*DATAFILES" ' .. file)
-            gout = string.gsub(gout, " ", "")
             local result = vim.split(string.gsub(gout, "DATAFILES", ""), "\n")
             for _, f in pairs(result) do
                 if f ~= "" then
-                    table.insert(dataFiles, f)
+                    local dFiles = vim.split(f, " ")
+                    for _, df in pairs(dFiles) do
+                      table.insert(dataFiles, df)
+                    end
                 end
             end
         end

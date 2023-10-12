@@ -52,6 +52,12 @@ vim.api.nvim_create_user_command('Fmpirun',
     {nargs = '*',
 })
 
+vim.api.nvim_create_user_command('Flash4',
+  function(opts)
+    fl.run()
+  end,
+  {nargs = 0})
+
 vim.api.nvim_create_user_command('Fpush',
     function(opts)
         local name = opts.fargs[1]
