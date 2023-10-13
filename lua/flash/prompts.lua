@@ -87,7 +87,26 @@ M.pickObj = function()
     local searchdir = fl.FLASH .. os_sep .. fl.getObjDir(name)
     builtin.find_files({cwd=searchdir,
         path_displays={'truncate'},
-        follow = 'true'
+        follow = 'true',
+        prompt_title = fl.getObjDir(name),
+        attach_mappings = function(prompt_bufnr)
+            action_set.select:replace(function()
+                local selection = action_state.get_selected_entry()
+
+                actions.close(prompt_bufnr)
+                local file = selection.value
+                local fullpath = fl.getObjDir(name) .. os_sep .. file
+                local uv = require'luv'
+                local linkpath = uv.fs_readlink(fullpath)
+                if linkpath then
+                  file = string.gsub(linkpath, '%.%./', '')
+                else
+                  file = fullpath
+                end
+                vim.cmd('e ' .. file)
+            end)
+            return true
+        end,
 })
 end
 
