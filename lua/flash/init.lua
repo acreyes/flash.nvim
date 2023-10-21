@@ -9,67 +9,12 @@ local os_sep = Path.path.sep
 local scan = require 'plenary.scandir'
 
 M.FLASH = vim.fn.getcwd()
-local problems = {}
+M.problems = {}
 
 local data_path = vim.fn.stdpath("data")
 local cache_problems = string.format("%s/flash.json", data_path)
 
 
--- Stack functions
-M.push = function(name, simname, opts)
-    local sim = {}
-    sim["sim"] = simname
-    sim["opts"] = opts
-    sim["runDirs"] = {}
-    problems[name] = sim
-    M.HEAD = name
-    M.save()
-end
-
-M.editSetup = function(name, opts)
-  name = name or M.HEAD
-  problems[name]["opts"] = opts
-  M.save()
-end
-
-M.switch = function(name)
-    M.HEAD = name
-    M.save()
-end
-
-M.getProblems = function()
-    return problems
-end
-
-M.add = function(opts, name)
-    name = name or M.HEAD
-    local sim = problems[name]
-    sim["opts"] = sim["opts"] .. " " .. opts
-    problems[name] = sim
-    M.save()
-end
-
-M.save = function()
-    problems["HEAD"] = M.HEAD
-    Path:new(cache_problems):write(vim.fn.json_encode(problems), "w")
-end
-
-M.load = function()
-    return vim.json.decode(Path:new(cache_problems):read())
-end
-
-M.init = function(FLASH_DIR)
-    -- initialize by trying to read problems from cached table if it exists
-    M.FLASH = FLASH_DIR or './'
-    local ok, probs = pcall(M.load, cache_problems)
-    if ok then
-        problems = probs
-        M.HEAD = problems['HEAD']
-        -- M.HEAD = next(problems, nil)
-    end
-end
-
--- end stack
 --
 -- FLASH directory related actions
 
@@ -81,7 +26,7 @@ end
 
 M.getSimDir = function(name)
     name = name or M.HEAD
-    return "source/Simulation/SimulationMain" .. os_sep .. problems[name]["sim"]
+    return "source/Simulation/SimulationMain" .. os_sep .. M.problems[name]["sim"]
 end
 
 M.setup = function(name)
@@ -89,8 +34,8 @@ M.setup = function(name)
     local objdir = M.getObjDir(M.HEAD)
     vim.fn.jobstart({ 'mkdir', '-p', M.FLASH .. os_sep .. objdir })
     local setupPY = M.FLASH .. "/bin/setup.py"
-    local opts = problems[M.HEAD]["opts"] .. " -objdir=" .. objdir
-    local prob = problems[M.HEAD]["sim"]
+    local opts = M.problems[M.HEAD]["opts"] .. " -objdir=" .. objdir
+    local prob = M.problems[M.HEAD]["sim"]
     M.buf.get_buf()
     local command = { setupPY, prob }
     for w in opts:gmatch("%g+") do table.insert(command, w) end
@@ -101,25 +46,25 @@ end
 local copy2run = function(name, file, runName)
     runName = runName or ''
     name = name or M.HEAD
-    local rd = problems[name]["RD"]
-    local rundir = M.FLASH .. os_sep .. M.getObjDir(name) .. os_sep .. problems[name]["runDirs"][rd]
+    local rd = M.problems[name]["RD"]
+    local rundir = M.FLASH .. os_sep .. M.getObjDir(name) .. os_sep .. rd
     vim.fn.system("cp " .. file .. " " .. rundir .. os_sep .. runName)
 end
 
 M.addRunDir = function(name, runDir, parfile)
     name = name or M.HEAD
     parfile = parfile or M.FLASH .. os_sep .. M.getObjDir(name) .. os_sep .. "flash.par"
-    if not problems[name]["runDirs"] then
-        problems[name]["runDirs"] = {}
+    if not M.problems[name]["runDirs"] then
+        M.problems[name]["runDirs"] = {}
     end
     if runDir then
         -- table.insert(problems[name]["runDirs"], runDir)
-        problems[name]["runDirs"][runDir] = runDir
-        problems[name]["RD"] = runDir
+        M.problems[name]["runDirs"][runDir] = {runDirectory = runDir, par = parfile}
+        M.problems[name]["RD"] = runDir
         vim.fn.system("mkdir -p " .. M.FLASH .. os_sep .. M.getObjDir(name) .. os_sep .. runDir)
         copy2run(name, parfile, 'flash.par')
         M.getDataFiles()
-        local dataFiles = problems[name]["dataFiles"]
+        local dataFiles = M.problems[name]["dataFiles"]
         if dataFiles then
             for _, df in pairs(dataFiles) do
                 copy2run(name, M.FLASH .. os_sep .. M.getSimDir(name) .. os_sep .. df)
@@ -130,7 +75,7 @@ M.addRunDir = function(name, runDir, parfile)
 end
 
 M.setRunDir = function(name, runDir)
-    problems[name]["RD"] = runDir
+    M.problems[name]["RD"] = runDir
     M.save()
 end
 
@@ -146,16 +91,16 @@ M.run = function(opts)
     local objdir = M.getObjDir(M.HEAD)
     local command = 'mpirun ' .. opts .. ' ' .. M.FLASH .. os_sep .. objdir .. '/flash4'
     -- TODO: run in data directory
-    local rd = problems[M.HEAD]["RD"]
+    local rd = M.problems[M.HEAD]["RD"]
     local rundir = objdir
     if rd then
-        rundir = objdir .. os_sep .. problems[M.HEAD]["runDirs"][rd]
+        rundir = objdir .. os_sep .. M.problems[M.HEAD]["runDirs"][rd]["runDirectory"]
     end
     M.buf.run_buf(command, { cwd = M.FLASH .. os_sep .. rundir })
 end
 
 M.getDataFiles = function()
-    local simdir = problems[M.HEAD]["sim"]
+    local simdir = M.problems[M.HEAD]["sim"]
 
     local all_dirs = vim.split(simdir, os_sep)
 
@@ -191,13 +136,104 @@ M.getDataFiles = function()
                 end
             end
         end
-        problems[M.HEAD]["dataFiles"] = dataFiles
+        M.problems[M.HEAD]["dataFiles"] = dataFiles
     end
     M.save()
 end
 
+local checkDir = function(path)
+  local isDir = vim.fn.isdirectory(path)
+  if isDir == 0 then
+    vim.fn.system("mkdir -p " .. path)
+  end
+  return isDir
+end
+
+-- checks the status of a simulation in the current FLASH directory
+-- If name doesn't have an object directory, build it
+-- loop over the run directories and rebuild them if they don't exist
+local checkSim = function(name)
+  name = name or M.HEAD
+  local objdir = M.FLASH .. os_sep .. M.getObjDir(name)
+  local isObj = checkDir(objdir)
+  for rd, rdT in pairs(M.problems[name]["runDirs"]) do
+    local isRun = checkDir(objdir .. os_sep .. rd)
+    if isRun == 0 then
+      if rdT['par'] then
+        local parfile = rdT['par']
+      end
+      M.addRunDir(name, rd, parfile)
+    end
+  end
+end
+
+-- Stack functions
+M.push = function(name, simname, opts)
+    local sim = {}
+    sim["sim"] = simname
+    sim["opts"] = opts
+    sim["runDirs"] = {}
+    M.problems[name] = sim
+    M.HEAD = name
+    M.save()
+end
+
+M.editSetup = function(name, opts)
+  name = name or M.HEAD
+  M.problems[name]["opts"] = opts
+  M.save()
+end
+
+M.switch = function(name)
+    M.HEAD = name
+    checkSim(M.HEAD)
+    M.save()
+end
+
+M.getProblems = function()
+    return M.problems
+end
+
+M.add = function(opts, name)
+    name = name or M.HEAD
+    local sim = M.problems[name]
+    sim["opts"] = sim["opts"] .. " " .. opts
+    M.problems[name] = sim
+    M.save()
+end
+
+M.save = function()
+    M.problems["HEAD"] = M.HEAD
+    Path:new(cache_problems):write(vim.fn.json_encode(M.problems), "w")
+end
+
+M.load = function()
+    return vim.json.decode(Path:new(cache_problems):read())
+end
+
+M.init = function(config)
+    config = config or {}
+    config = vim.tbl_extend("force",
+    { FLASH='./',
+    }, config)
+    -- initialize by trying to read problems from cached table if it exists
+    M.FLASH = config['FLASH']
+    local ok, probs = pcall(M.load, cache_problems)
+    if ok then
+        M.problems = probs
+        M.HEAD = M.problems['HEAD']
+        checkSim(M.HEAD)
+        -- M.HEAD = next(problems, nil)
+    else
+      print("problem!!!!")
+    end
+end
+
+-- end stack
+
 -- local FLASH_DIR = os.getenv('FLASH_DIR')
 -- M.init(FLASH_DIR)
+-- checkSim("test")
 -- M.dataFiles()
 -- M.addRunDir(M.HEAD, "RUN01")
 

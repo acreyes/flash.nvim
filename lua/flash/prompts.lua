@@ -42,6 +42,7 @@ end
 local getHead = function()
     local data = {}
     local probs = fl.getProblems()
+    print(vim.inspect(fl.getProblems()))
     for name, _ in pairs(probs) do
         if name ~= 'HEAD' then
             table.insert(data, name)
