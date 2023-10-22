@@ -47,19 +47,24 @@ end
 
 -- scroll target buffer to end (set cursor to last line)
 local scroll_to_end = function(bufnr)
-  local cur_win = vim.api.nvim_get_current_win()
+  local next = next(vim.fn.win_findbuf(bufnr))
+  if next then
+    vim.fn.win_execute(M._win, 'norm G')
+  end
 
+  -- local cur_win = vim.api.nvim_get_current_win()
+  -- scroll buffer in other window
   -- switch to buf and set cursor
-  vim.api.nvim_buf_call(bufnr, function()
-    local target_win = vim.api.nvim_get_current_win()
-    vim.api.nvim_set_current_win(target_win)
+  -- vim.api.nvim_buf_call(bufnr, function()
+    -- local target_win = vim.api.nvim_get_current_win()
+    -- vim.api.nvim_set_current_win(target_win)
 
-    local target_line = vim.tbl_count(vim.api.nvim_buf_get_lines(0, 0, -1, true))
-    vim.api.nvim_win_set_cursor(target_win, { target_line, 0 })
-  end)
+    -- local target_line = vim.tbl_count(vim.api.nvim_buf_get_lines(0, 0, -1, true))
+    -- vim.api.nvim_win_set_cursor(target_win, { target_line, 0 })
+  -- end)
 
   -- return to original window
-  vim.api.nvim_set_current_win(cur_win)
+  -- vim.api.nvim_set_current_win(cur_win)
 end
 
 M.write_stdout = function(data)
