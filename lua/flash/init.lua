@@ -14,6 +14,17 @@ M.problems = {}
 local data_path = vim.fn.stdpath("data")
 local cache_problems = string.format("%s/flash.json", data_path)
 
+M.isCmake = function(name)
+  name = name or M.HEAD
+  local opts = M.problems[name]["opts"]
+  local cmake = false
+  local cmake_flags = {'cmake', 'python'}
+  for _, cf in pairs(cmake_flags) do
+    cmake = cmake or string.match(opts, cf)
+  end
+
+  return cmake
+end
 
 --
 -- FLASH directory related actions
@@ -51,9 +62,19 @@ local copy2run = function(name, file, runName)
     vim.fn.system("cp " .. file .. " " .. rundir .. os_sep .. runName)
 end
 
+M.cmake = function(name, opts)
+  name = name or M.HEAD
+  if M.isCmake(name) then
+    local objdir = M.FLASH .. os_sep .. M.getObjDir(name)
+    local runDir = M.problems[name]["RD"]
+    M.buf.run_buf("cmake " .. opts .. " " .. objdir, {cwd = objdir .. os_sep .. runDir})
+  end
+end
+
 M.addRunDir = function(name, runDir, parfile)
     name = name or M.HEAD
-    parfile = parfile or M.FLASH .. os_sep .. M.getObjDir(name) .. os_sep .. "flash.par"
+    local objdir = M.FLASH .. os_sep .. M.getObjDir(name)
+    parfile = parfile or objdir .. os_sep .. "flash.par"
     if not M.problems[name]["runDirs"] then
         M.problems[name]["runDirs"] = {}
     end
@@ -61,8 +82,15 @@ M.addRunDir = function(name, runDir, parfile)
         -- table.insert(problems[name]["runDirs"], runDir)
         M.problems[name]["runDirs"][runDir] = {runDirectory = runDir, par = parfile}
         M.problems[name]["RD"] = runDir
-        vim.fn.system("mkdir -p " .. M.FLASH .. os_sep .. M.getObjDir(name) .. os_sep .. runDir)
-        copy2run(name, parfile, 'flash.par')
+        vim.fn.system("mkdir -p " .. objdir .. os_sep .. runDir)
+        local runPar = 'flash.par'
+        if M.isCmake(name) then
+          M.buf.run_buf("cmake " .. objdir, {cwd = objdir .. os_sep .. runDir})
+          if string.match(parfile, 'py$') then
+            runPar = 'flashPar.py'
+          end
+        end
+        copy2run(name, parfile, runPar)
         M.getDataFiles()
         local dataFiles = M.problems[name]["dataFiles"]
         if dataFiles then
@@ -83,19 +111,26 @@ M.compile = function(opts)
     opts = opts or ""
     local objdir = M.getObjDir(M.HEAD)
     local command = "make " .. opts
-    M.buf.run_buf(command, { cwd = M.FLASH .. "/" .. objdir })
+    local path = M.FLASH .. os_sep .. objdir
+    if M.isCmake(M.HEAD) then
+      path = path .. os_sep .. M.problems[M.HEAD]["RD"]
+    end
+    M.buf.run_buf(command, { cwd = path })
 end
 
 M.run = function(opts)
     opts = opts or '-np 1'
     local objdir = M.getObjDir(M.HEAD)
-    local command = 'mpirun ' .. opts .. ' ' .. M.FLASH .. os_sep .. objdir .. '/flash4'
-    -- TODO: run in data directory
     local rd = M.problems[M.HEAD]["RD"]
     local rundir = objdir
     if rd then
         rundir = objdir .. os_sep .. M.problems[M.HEAD]["runDirs"][rd]["runDirectory"]
     end
+    local exePath = M.FLASH .. os_sep .. objdir
+    if M.isCmake(M.HEAD) then
+      exePath = exePath .. os_sep .. rd
+    end
+    local command = 'mpirun ' .. opts .. ' ' ..  exePath .. os_sep ..  'flash4'
     M.buf.run_buf(command, { cwd = M.FLASH .. os_sep .. rundir })
 end
 
@@ -166,6 +201,7 @@ local checkSim = function(name)
     end
   end
 end
+
 
 -- Stack functions
 M.push = function(name, simname, opts)

@@ -30,6 +30,17 @@ vim.api.nvim_create_user_command('Fsetup',
      end,
 })
 
+vim.api.nvim_create_user_command('Fcmake',
+    function(opts)
+        local args = ''
+        for _, opt in pairs(opts.fargs) do
+            args = args..' '..opt
+        end
+        fl.cmake(fl.HEAD, args)
+    end,
+    {nargs = '*',
+})
+
 vim.api.nvim_create_user_command('Fmake',
     function(opts)
         local args = ''
