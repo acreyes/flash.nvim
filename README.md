@@ -33,26 +33,35 @@ use { 'acreyes/flash.nvim',
 ## Usage
 
 ```lua
-local fl = require("flash")
-local ui = require("flash.ui")
-local prompt = require("flash.prompts")
-local buf = require("flash.buffers")
+vim.api.nvim_create_user_command('Flaunch',
+    function(opts)
+      local fl = require("flash")
+      local ui = require("flash.ui")
+      local prompt = require("flash.prompts")
+      local buf = require("flash.buffers")
 
-local FLASH_DIR = os.getenv('FLASH_DIR')
-fl.init(FLASH_DIR)
+      local FLASH_DIR = os.getenv('FLASH_DIR')
+      fl.init(FLASH_DIR)
 
-vim.keymap.set("n", "<leader><leader>k", buf.kill_all)
-vim.keymap.set("n", "<leader>si", buf.send_stdin)
-vim.keymap.set("n", "<leader>fj", buf.toggle_win)
-vim.keymap.set("n", "<leader>ps", prompt.pickSim)
-vim.keymap.set("n", "<leader>pr", prompt.pickRun)
-vim.keymap.set("n", "<leader>po", prompt.pickObj)
-vim.keymap.set("n", "<leader>sh", prompt.switch)
-vim.keymap.set("n", "<leader>sr", prompt.switchRD)
-vim.keymap.set("n", "<leader>es", prompt.editSetup)
+      vim.keymap.set("n", "<leader><leader>k", buf.kill_all)
+      vim.keymap.set("n", "<leader>si", buf.send_stdin)
+      vim.keymap.set("n", "<leader>fj", buf.toggle_win)
+      vim.keymap.set("n", "<leader>ps", prompt.pickSim)
+      vim.keymap.set("n", "<leader>pr", prompt.pickRun)
+      vim.keymap.set("n", "<leader>po", prompt.pickObj)
+      vim.keymap.set("n", "<leader>sh", prompt.switch)
+      vim.keymap.set("n", "<leader>sr", prompt.switchRD)
+      vim.keymap.set("n", "<leader>es", prompt.editSetup)
+    end,
+    {nargs=0,
+})
+
 ```
 
 `flash.nvim` is initialized with `require'flash'.init()` by passing the path to where you have the FLASH Code. This will cause the plugin to load the state of the stack from the last save. The stack is saved anytime an operation is done to change it. The plugin manages two stacks, one for the object directories and then within each of those there is a stack for the run directories. The stack stores the setup arguments for each object directory.
+
+Often you can have multiple versions of the FLASH code across different directories, that could be SVN branches or git worktrees. The cached setup of `flash.nvim` is shared amongst all of these
+but on load or switching `HEAD` the plugin will attempt to rebuild the object directory structure based on the stored information in the cache.
 
 ### Setup FLASH simulation
 ```vim
@@ -103,6 +112,12 @@ vim.keymap.set("n", "<leader>es", prompt.editSetup)
   * adds the directory `RUN` to the run stack
   * Opens a telescope prompt to select a `*.par` from your simulation directory
   * Afterwards all `DATAFILES` specified in `Config` files from `source/Simulation/SimulationMain` up to your simulation directory will be copied to the run directory
+
+* `flash.nvim` will detect if your setup arguments include anything that would use the `CMake` build system, in which case your run directory
+   will double as the cmake build directory and you can
+  ```vim
+  :Fcmake (OPTS)
+  ```
  
 * You can switch the active run directory
   ```vim
