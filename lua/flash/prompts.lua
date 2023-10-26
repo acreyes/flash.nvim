@@ -77,7 +77,7 @@ M.pickRun = function()
     if sim['RD'] then
         local rundir = sim['RD']
         local searchdir = fl.FLASH .. os_sep .. fl.getObjDir(name) .. os_sep .. rundir
-        builtin.find_files({cwd=searchdir, path_displys = {"truncate"}})
+        builtin.find_files({cwd=searchdir, path_displys = {"truncate"}, follow=true, find_command={"find", ".","-depth", '1', "-type", "f"}})
     else
         print('No Active Run Directory')
     end
@@ -126,6 +126,14 @@ end
 M.addRunDir = function(name, runDir)
     name = name or fl.HEAD
     local data = {}
+    scan.scan_dir(fl.FLASH .. os_sep .. fl.getSimDir(name), {
+        hidden = false,
+        depth = 1,
+        search_pattern = ".*py",
+        on_insert = function(entry)
+            table.insert(data,entry)
+        end,
+    })
     scan.scan_dir(fl.FLASH .. os_sep .. fl.getSimDir(name), {
         hidden = false,
         depth = 1,
