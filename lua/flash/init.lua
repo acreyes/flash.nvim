@@ -56,13 +56,13 @@ end
 
 M.getRunDir = function(name)
    name = name or M.HEAD
-    local objdir = M.getObjDir(M.HEAD)
-    local rd = M.problems[M.HEAD]["RD"]
-    local rundir = objdir
-    if rd then
-        rundir = objdir .. os_sep .. M.problems[M.HEAD]["runDirs"][rd]["runDirectory"]
-    end
-    return M.FLASH .. os_sep .. rundir
+   local objdir = M.getObjDir(name)
+   local rd = M.problems[name]["RD"]
+   local rundir = objdir
+   if rd then
+      rundir = objdir .. os_sep .. M.problems[name]["runDirs"][rd]["runDirectory"]
+   end
+   return M.FLASH .. os_sep .. rundir
 end
 
 M.setup = function(name)
