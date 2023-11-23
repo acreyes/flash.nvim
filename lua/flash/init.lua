@@ -40,6 +40,20 @@ M.getSimDir = function(name)
     return "source/Simulation/SimulationMain" .. os_sep .. M.problems[name]["sim"]
 end
 
+M.getExe = function(name)
+   name = name or M.HEAD
+    local objdir = M.getObjDir(M.HEAD)
+    local rd = M.problems[name]["RD"]
+    if not rd then
+       print("Warning no Run Directory")
+    end
+    local exePath = M.FLASH .. os_sep .. objdir
+    if M.isCmake(name) then
+      exePath = exePath .. os_sep .. rd
+    end
+    return exePath .. os_sep .. "flash4"
+end
+
 M.setup = function(name)
     M.HEAD = name or M.HEAD
     local objdir = M.getObjDir(M.HEAD)
