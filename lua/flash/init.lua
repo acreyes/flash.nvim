@@ -9,6 +9,7 @@ local os_sep = Path.path.sep
 local scan = require 'plenary.scandir'
 
 M.FLASH = vim.fn.getcwd()
+M.mpirun = 'mpirun'
 M.problems = {}
 
 local data_path = vim.fn.stdpath("data")
@@ -89,10 +90,13 @@ end
 
 M.cmake = function(name, opts)
   name = name or M.HEAD
+  opts = opts .. " -DCMAKE_EXPORT_COMPILE_COMMANDS=1"
   if M.isCmake(name) then
     local objdir = M.FLASH .. os_sep .. M.getObjDir(name)
-    local runDir = M.problems[name]["RD"]
-    M.buf.run_buf("cmake " .. opts .. " " .. objdir, {cwd = objdir .. os_sep .. runDir})
+    local runDir = objdir .. os_sep .. M.problems[name]["RD"]
+    M.buf.run_buf("cmake " .. opts .. " " .. objdir, {cwd = runDir})
+    M.buf.run_buf("compdb -p " .. runDir .. os_sep .. " list > compile_commands.json", {cwd=M.FLASH})
+    -- M.buf.run_buf("ln -s " .. runDir .. os_sep .. "compile_commands.json " .. M.FLASH .. os_sep .. "compile_commands.json")
   end
 end
 
@@ -155,7 +159,7 @@ M.run = function(opts)
     if M.isCmake(M.HEAD) then
       exePath = exePath .. os_sep .. rd
     end
-    local command = 'mpirun ' .. opts .. ' ' ..  exePath .. os_sep ..  'flash4'
+    local command = M.mpirun .. ' ' .. opts .. ' ' ..  exePath .. os_sep ..  'flash4'
     M.buf.run_buf(command, { cwd = M.FLASH .. os_sep .. rundir })
 end
 
@@ -276,9 +280,11 @@ M.init = function(config)
     config = config or {}
     config = vim.tbl_extend("force",
     { FLASH='./',
+      mpirun='mpirun'
     }, config)
     -- initialize by trying to read problems from cached table if it exists
     M.FLASH = config['FLASH']
+    M.mpirun = config['mpirun']
     local ok, probs = pcall(M.load, cache_problems)
     if ok then
         M.problems = probs
