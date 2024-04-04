@@ -10,6 +10,8 @@ local scan = require 'plenary.scandir'
 
 M.FLASH = vim.fn.getcwd()
 M.mpirun = 'mpirun'
+M.runConfig = function()
+end
 M.problems = {}
 
 local data_path = vim.fn.stdpath("data")
@@ -67,7 +69,9 @@ M.getRunDir = function(name)
 end
 
 M.setup = function(name)
-    M.HEAD = name or M.HEAD
+    -- M.HEAD = name or M.HEAD
+    name = name or M.HEAD
+    M.switch(name)
     local objdir = M.getObjDir(M.HEAD)
     vim.fn.jobstart({ 'mkdir', '-p', M.FLASH .. os_sep .. objdir })
     local setupPY = M.FLASH .. "/bin/setup.py"
@@ -233,13 +237,21 @@ end
 
 
 -- Stack functions
+M.switch = function(name)
+    M.HEAD = name
+    checkSim(M.HEAD)
+    M.runConfig()
+    M.save()
+end
+
 M.push = function(name, simname, opts)
     local sim = {}
     sim["sim"] = simname
     sim["opts"] = opts
     sim["runDirs"] = {}
     M.problems[name] = sim
-    M.HEAD = name
+    -- M.HEAD = name
+    M.switch(name)
     M.save()
 end
 
@@ -249,11 +261,6 @@ M.editSetup = function(name, opts)
   M.save()
 end
 
-M.switch = function(name)
-    M.HEAD = name
-    checkSim(M.HEAD)
-    M.save()
-end
 
 M.getProblems = function()
     return M.problems
@@ -280,16 +287,19 @@ M.init = function(config)
     config = config or {}
     config = vim.tbl_extend("force",
     { FLASH='./',
-      mpirun='mpirun'
+      mpirun='mpirun',
+      runConfig = M.runConfig
     }, config)
     -- initialize by trying to read problems from cached table if it exists
     M.FLASH = config['FLASH']
     M.mpirun = config['mpirun']
+    M.runConfig = config['runConfig']
     local ok, probs = pcall(M.load, cache_problems)
     if ok then
         M.problems = probs
-        M.HEAD = M.problems['HEAD']
-        checkSim(M.HEAD)
+        M.switch(M.problems['HEAD'])
+        -- M.HEAD = M.problems['HEAD']
+        -- checkSim(M.HEAD)
         -- M.HEAD = next(problems, nil)
     else
       print("problem!!!!")
