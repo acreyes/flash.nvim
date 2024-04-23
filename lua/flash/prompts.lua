@@ -42,7 +42,6 @@ end
 local getHead = function()
     local data = {}
     local probs = fl.getProblems()
-    print(vim.inspect(fl.getProblems()))
     for name, _ in pairs(probs) do
         if name ~= 'HEAD' then
             table.insert(data, name)
@@ -184,10 +183,11 @@ local getSim = function(name)
         attach_mappings = function(prompt_bufnr)
             action_set.select:replace(function()
                 local selection = action_state.get_selected_entry()
-                local simDir = string.gsub(selection.value, fl.FLASH .. '/source/Simulation/SimulationMain/', '')
 
+                local fdir = Path:new(selection.value)
+                local simDir = fdir:make_relative(fl.FLASH .. os_sep .. 'source/Simulation/SimulationMain')
                 actions.close(prompt_bufnr)
-                M.push(name, simDir:sub(1, -2))
+                M.push(name, simDir)
             end)
             return true
         end,
