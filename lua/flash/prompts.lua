@@ -76,7 +76,7 @@ M.pickRun = function()
     if sim['RD'] then
         local rundir = sim['RD']
         local searchdir = fl.FLASH .. os_sep .. fl.getObjDir(name) .. os_sep .. rundir
-        builtin.find_files({cwd=searchdir, path_displys = {"truncate"}, follow=true, find_command={"find", ".","-depth", '1', "-type", "f"}})
+        builtin.find_files({cwd=searchdir, path_displys = {"truncate"}, follow=true, find_command={"find", ".","-maxdepth", '1', "-type", "f"}})
     else
         print('No Active Run Directory')
     end
